@@ -1,0 +1,603 @@
+{% extends 'interior_app/base.html' %} {% block title %}Tải lên ảnh - Virtual
+Interior Designer{% endblock %} {% block extra_css %}
+<style>
+  .upload-container {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .upload-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 25px;
+    box-shadow: 0 25px 50px rgba(102, 126, 234, 0.2);
+    overflow: hidden;
+    transition: all 0.4s ease;
+  }
+
+  .upload-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 35px 70px rgba(102, 126, 234, 0.3);
+  }
+
+  .drop-area {
+    border: 3px dashed rgba(102, 126, 234, 0.3);
+    border-radius: 20px;
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.05) 0%,
+      rgba(118, 75, 162, 0.05) 100%
+    );
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drop-area::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg,
+      transparent,
+      rgba(102, 126, 234, 0.1),
+      transparent
+    );
+    animation: rotate 20s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .drop-area:hover::before {
+    opacity: 1;
+  }
+
+  .drop-area.drag-over {
+    border-color: var(--primary-color);
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.1) 0%,
+      rgba(118, 75, 162, 0.1) 100%
+    );
+    transform: scale(1.02);
+  }
+
+  .drop-area-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .upload-icon {
+    font-size: 4rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .upload-title {
+    font-family: "Poppins", sans-serif;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 1rem;
+  }
+
+  .upload-subtitle {
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+  }
+
+  .browse-btn {
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 15px;
+    padding: 0.75rem 2rem;
+    font-weight: 500;
+    color: white;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .browse-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+  }
+
+  .browse-btn:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  .browse-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+  }
+
+  .preview-container {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    backdrop-filter: blur(10px);
+  }
+
+  .preview-image {
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .preview-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  }
+
+  .continue-btn {
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 15px;
+    padding: 1rem 3rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .continue-btn:disabled {
+    background: #e2e8f0;
+    color: #a0aec0;
+    cursor: not-allowed;
+  }
+
+  .continue-btn:not(:disabled):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
+  }
+
+  .progress-indicator {
+    display: none;
+    margin-top: 1rem;
+  }
+
+  .progress-bar {
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    height: 8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .file-info {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+  }
+
+  .success-animation {
+    animation: successPulse 0.6s ease-out;
+  }
+
+  @keyframes successPulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="upload-container">
+  <div class="row justify-content-center w-100">
+  <div class="col-lg-8">
+      <div class="card upload-card fade-in">
+        <div class="card-header">
+          <h3 class="mb-0 text-center">
+          <i class="fas fa-upload me-2"></i>Tải lên ảnh phòng của bạn
+        </h3>
+      </div>
+        <div class="card-body p-5">
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+          {% csrf_token %}
+
+            <div class="text-center mb-5 slide-in-left">
+              <h4 class="upload-title">
+                Tải lên ảnh phòng mà bạn muốn chỉnh sửa
+              </h4>
+              <p class="upload-subtitle">
+                Hãy chọn ảnh có độ phân giải rõ ràng để đạt kết quả tốt nhất.
+              </p>
+          </div>
+
+            <div class="mb-5">
+              <div class="drop-area p-5 text-center" id="drop-area">
+                <div class="drop-area-content">
+                  <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                  <h5 class="upload-title">Kéo và thả ảnh vào đây</h5>
+                  <p class="upload-subtitle">hoặc</p>
+
+                  <div
+                    class="position-relative mx-auto"
+                    style="max-width: 250px"
+                  >
+                  <input
+                    type="file"
+                    name="image"
+                    id="image-upload"
+                    class="position-absolute invisible"
+                    accept="image/*"
+                    style="width: 100%; height: 100%; top: 0; left: 0"
+                  />
+                  <button
+                    type="button"
+                      class="btn browse-btn w-100"
+                    id="browse-button"
+                  >
+                    <i class="fas fa-folder-open me-2"></i>Chọn file
+                  </button>
+                </div>
+
+                  <div id="file-info" class="file-info d-none">
+                    <i class="fas fa-file-image me-2"></i>
+                    <span id="file-name"></span>
+                    <span class="ms-2 text-muted"
+                      >(<span id="file-size"></span>)</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <div
+                id="preview-container"
+                class="preview-container d-none scale-in"
+              >
+                <h6 class="text-center mb-3">
+                  <i class="fas fa-eye me-2"></i>Xem trước ảnh
+                </h6>
+                <div class="text-center">
+                  <img
+                    id="image-preview"
+                    class="preview-image img-fluid"
+                    style="max-height: 400px"
+                  />
+                </div>
+              </div>
+
+              <div id="progress-indicator" class="progress-indicator">
+                <div class="text-center mb-2">
+                  <small class="text-muted">Đang tải lên...</small>
+                </div>
+                <div class="progress">
+                  <div class="progress-bar w-100"></div>
+              </div>
+            </div>
+          </div>
+
+            <div class="text-center fade-in">
+            <button
+              type="submit"
+                class="btn continue-btn"
+              id="upload-button"
+              disabled
+            >
+                <i class="fas fa-arrow-right me-2"></i>Tiếp tục chỉnh sửa
+            </button>
+              <div class="mt-3">
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Hỗ trợ định dạng: JPG, PNG, GIF (tối đa 10MB)
+                </small>
+              </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+      </div>
+  </div>
+</div>
+{% endblock %} 
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const dropArea = document.getElementById("drop-area");
+    const fileInput = document.getElementById("image-upload");
+    const browseButton = document.getElementById("browse-button");
+    const previewContainer = document.getElementById("preview-container");
+    const imagePreview = document.getElementById("image-preview");
+    const uploadButton = document.getElementById("upload-button");
+    const fileInfo = document.getElementById("file-info");
+    const fileName = document.getElementById("file-name");
+    const fileSize = document.getElementById("file-size");
+    const progressIndicator = document.getElementById("progress-indicator");
+    const uploadForm = document.getElementById("upload-form");
+
+    // GSAP animations for page load
+    gsap.fromTo('.upload-card', 
+      { y: 50, opacity: 0 },
+      {
+        duration: 1,
+        y: 0,
+        opacity: 1,
+        ease: 'power3.out'
+      }
+    );
+
+    gsap.fromTo('.drop-area',
+      { scale: 0.9, opacity: 0 },
+      {
+        duration: 1.2,
+        scale: 1,
+        opacity: 1,
+        ease: 'back.out(1.7)',
+        delay: 0.3
+      }
+    );
+
+    // Mở hộp thoại khi nhấp vào nút chọn file
+    browseButton.addEventListener("click", function () {
+      fileInput.click();
+    });
+
+    // Xử lý sự kiện kéo thả
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+      dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropArea.addEventListener(eventName, highlight, false);
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight() {
+      dropArea.classList.add("drag-over");
+      gsap.to(dropArea, {
+        duration: 0.3,
+        scale: 1.02,
+        ease: 'power2.out'
+      });
+    }
+
+    function unhighlight() {
+      dropArea.classList.remove("drag-over");
+      gsap.to(dropArea, {
+        duration: 0.3,
+        scale: 1,
+        ease: 'power2.out'
+      });
+    }
+
+    // Xử lý khi kéo thả file
+    dropArea.addEventListener("drop", handleDrop, false);
+
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+
+      if (files.length > 0) {
+        fileInput.files = files;
+        updateImagePreview(files[0]);
+        
+        // Success animation
+        gsap.to(dropArea, {
+          duration: 0.6,
+          scale: 1.05,
+          yoyo: true,
+          repeat: 1,
+          ease: 'power2.inOut'
+        });
+      }
+    }
+
+    // Xử lý khi chọn file
+    fileInput.addEventListener("change", function () {
+      if (fileInput.files.length > 0) {
+        updateImagePreview(fileInput.files[0]);
+      }
+    });
+
+    // Hiển thị xem trước ảnh
+    function updateImagePreview(file) {
+      if (file.type.match("image.*")) {
+        // Validate file size (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          alert("File quá lớn! Vui lòng chọn file nhỏ hơn 10MB.");
+          return;
+        }
+
+        // Show file info
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.classList.remove("d-none");
+        
+        // Animate file info
+        gsap.fromTo(fileInfo,
+          { y: 20, opacity: 0 },
+          {
+            duration: 0.5,
+            y: 0,
+            opacity: 1,
+            ease: 'power2.out'
+          }
+        );
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          imagePreview.src = e.target.result;
+          
+          // Show preview with animation
+          previewContainer.classList.remove("d-none");
+          gsap.fromTo(previewContainer,
+            { y: 30, opacity: 0, scale: 0.9 },
+            {
+              duration: 0.8,
+              y: 0,
+              opacity: 1,
+              scale: 1,
+              ease: 'back.out(1.7)'
+            }
+          );
+
+          // Enable upload button with animation
+          uploadButton.disabled = false;
+          uploadButton.classList.add("success-animation");
+          
+          gsap.to(uploadButton, {
+            duration: 0.3,
+            scale: 1.05,
+            yoyo: true,
+            repeat: 1,
+            ease: 'power2.inOut'
+          });
+
+          setTimeout(() => {
+            uploadButton.classList.remove("success-animation");
+          }, 600);
+        };
+
+        reader.readAsDataURL(file);
+      } else {
+        alert("Vui lòng chọn file ảnh hợp lệ!");
+      }
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Handle form submission
+    uploadForm.addEventListener('submit', function(e) {
+      if (!fileInput.files.length) {
+        e.preventDefault();
+        alert("Vui lòng chọn file ảnh!");
+        return;
+      }
+
+      // Show progress indicator
+      progressIndicator.style.display = 'block';
+      uploadButton.disabled = true;
+      uploadButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang tải lên...';
+      
+      // Animate progress
+      gsap.fromTo(progressIndicator,
+        { y: 20, opacity: 0 },
+        {
+          duration: 0.5,
+          y: 0,
+          opacity: 1,
+          ease: 'power2.out'
+        }
+      );
+    });
+
+    // Button hover effects
+    browseButton.addEventListener('mouseenter', function() {
+      gsap.to(this, {
+        duration: 0.3,
+        y: -3,
+        scale: 1.05,
+        ease: 'power2.out'
+      });
+    });
+
+    browseButton.addEventListener('mouseleave', function() {
+      gsap.to(this, {
+        duration: 0.3,
+        y: 0,
+        scale: 1,
+        ease: 'power2.out'
+      });
+    });
+
+    uploadButton.addEventListener('mouseenter', function() {
+      if (!this.disabled) {
+        gsap.to(this, {
+          duration: 0.3,
+          y: -3,
+          scale: 1.05,
+          ease: 'power2.out'
+        });
+      }
+    });
+
+    uploadButton.addEventListener('mouseleave', function() {
+      if (!this.disabled) {
+        gsap.to(this, {
+          duration: 0.3,
+          y: 0,
+          scale: 1,
+          ease: 'power2.out'
+        });
+      }
+    });
+
+    // Floating animation for upload icon
+    gsap.to('.upload-icon', {
+      duration: 3,
+      y: -10,
+      yoyo: true,
+      repeat: -1,
+      ease: 'power2.inOut'
+    });
+  });
+</script>
+{% endblock %}
+</div>

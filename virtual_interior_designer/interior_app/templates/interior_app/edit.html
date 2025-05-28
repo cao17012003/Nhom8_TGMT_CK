@@ -1,0 +1,2312 @@
+{% extends 'interior_app/base.html' %} {% block title %}Chỉnh sửa ảnh - Virtual
+Interior Designer{% endblock %} {% block extra_css %}
+<style>
+  .canvas-container {
+    position: relative;
+    width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  #image-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    cursor: crosshair;
+  }
+
+  #image-canvas:hover {
+    cursor: crosshair;
+  }
+
+  .point-marker {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .progress-container {
+    margin: 20px 0;
+  }
+
+  .result-container {
+    margin-top: 30px;
+  }
+
+  .control-panel {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .action-button {
+    margin-bottom: 10px;
+  }
+
+  .result-image {
+    max-width: 100%;
+    border-radius: 5px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.9) 0%,
+      rgba(118, 75, 162, 0.9) 100%
+    );
+    backdrop-filter: blur(20px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    color: white;
+    flex-direction: column;
+  }
+
+  .loader {
+    width: 80px;
+    height: 80px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 30px;
+    position: relative;
+  }
+
+  .loader::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: spin 0.5s linear infinite reverse;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .loading-text {
+    font-size: 1.2rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .loading-dots {
+    font-size: 1.5rem;
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+
+  @keyframes dots {
+    0%,
+    20% {
+      content: "";
+    }
+    40% {
+      content: ".";
+    }
+    60% {
+      content: "..";
+    }
+    80%,
+    100% {
+      content: "...";
+    }
+  }
+
+  .loading-progress {
+    width: 200px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 1rem;
+  }
+
+  .loading-progress-bar {
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      #ffffff,
+      rgba(255, 255, 255, 0.7),
+      #ffffff
+    );
+    border-radius: 2px;
+    animation: loading-progress 2s ease-in-out infinite;
+  }
+
+  @keyframes loading-progress {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .point-group {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 10px;
+  }
+
+  .point-color {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .selected-object {
+    display: inline-block;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    padding: 5px 10px;
+    background-color: #e9ecef;
+    border-radius: 15px;
+    font-size: 0.9rem;
+  }
+
+  .selected-objects-container {
+    margin-top: 15px;
+    margin-bottom: 10px;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h3 class="mb-0"><i class="fas fa-edit me-2"></i>Chỉnh sửa ảnh</h3>
+      </div>
+      <div class="card-body">
+        {% csrf_token %}
+        <div
+          class="canvas-container"
+          style="position: relative; width: 100%; height: auto"
+        >
+          <img
+            id="original-image"
+            src="{{ image_url }}"
+            class="img-fluid"
+            style="display: none"
+          />
+          <canvas
+            id="image-canvas"
+            style="width: 100%; height: auto; display: block"
+          ></canvas>
+        </div>
+
+        <div class="d-flex justify-content-between mb-2">
+          <button id="reset-button" class="btn btn-outline-secondary">
+            <i class="fas fa-undo me-1"></i>Đặt lại
+          </button>
+          <div>
+            <span class="badge bg-info" id="instruction-badge">
+              Click vào vật thể bạn muốn xóa
+            </span>
+          </div>
+        </div>
+
+        <div
+          id="selected-objects-container"
+          class="selected-objects-container d-none"
+        >
+          <h5>Vật thể đã chọn:</h5>
+          <div id="selected-objects-list"></div>
+        </div>
+
+        <div id="result-container" class="result-container d-none">
+          <h4 class="mb-3">Kết quả</h4>
+          <img id="result-image" class="result-image img-fluid" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="control-panel">
+      <!-- Tab Navigation -->
+      <ul class="nav nav-tabs mb-3" id="toolTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            id="remove-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#remove-panel"
+            type="button"
+            role="tab"
+          >
+            <i class="fas fa-eraser me-1"></i>Xóa vật thể
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="grabcut-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#grabcut-panel"
+            type="button"
+            role="tab"
+          >
+            <i class="fas fa-paint-brush me-1"></i>GrabCut
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="generate-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#generate-panel"
+            type="button"
+            role="tab"
+          >
+            <i class="fas fa-magic me-1"></i>Sinh nội thất
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab Content -->
+      <div class="tab-content" id="toolTabsContent">
+        <!-- Remove Objects Panel -->
+        <div
+          class="tab-pane fade show active"
+          id="remove-panel"
+          role="tabpanel"
+        >
+          <h4 class="mb-4">Công cụ xóa vật thể</h4>
+
+          <div class="action-button">
+            <button id="new-object-button" class="btn btn-info w-100">
+              <i class="fas fa-plus-circle me-2"></i>Chọn vật thể mới
+            </button>
+            <small class="text-muted d-block mt-1"
+              >Click để bắt đầu chọn một vật thể mới</small
+            >
+          </div>
+
+          <div class="action-button">
+            <button id="segment-button" class="btn btn-primary w-100" disabled>
+              <i class="fas fa-object-ungroup me-2"></i>Xác nhận vật thể hiện
+              tại
+            </button>
+            <small class="text-muted d-block mt-1"
+              >Xác nhận vật thể từ các điểm đã chọn</small
+            >
+          </div>
+
+          <div class="action-button">
+            <button id="inpaint-button" class="btn btn-success w-100" disabled>
+              <i class="fas fa-magic me-2"></i>Xóa tất cả vật thể
+            </button>
+            <small class="text-muted d-block mt-1"
+              >Xóa tất cả vật thể đã chọn và phục hồi nền</small
+            >
+          </div>
+
+          <div class="action-button">
+            <button
+              id="download-button"
+              class="btn btn-outline-primary w-100"
+              disabled
+            >
+              <i class="fas fa-download me-2"></i>Tải ảnh kết quả
+            </button>
+          </div>
+
+          <hr />
+
+          <div class="mt-4">
+            <h5>Hướng dẫn sử dụng</h5>
+            <ol class="small">
+              <li>Click nhiều lần vào một vật thể bạn muốn xóa khỏi ảnh</li>
+              <li>Nhấn "Xác nhận vật thể hiện tại" để lưu lại vật thể</li>
+              <li>Nhấn "Chọn vật thể mới" để chọn thêm vật thể khác</li>
+              <li>Nhấn "Xóa tất cả vật thể" để xử lý và phục hồi nền</li>
+              <li>Tải ảnh kết quả về máy</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- GrabCut Panel -->
+        <div class="tab-pane fade" id="grabcut-panel" role="tabpanel">
+          <h4 class="mb-4">Công cụ GrabCut</h4>
+
+          <!-- Mode Selection -->
+          <div class="mb-3">
+            <label class="form-label">Chế độ chọn</label>
+            <div class="btn-group w-100" role="group">
+              <input
+                type="radio"
+                class="btn-check"
+                name="grabcut-mode"
+                id="rectangle-mode"
+                value="rectangle"
+                checked
+              />
+              <label class="btn btn-outline-primary" for="rectangle-mode">
+                <i class="fas fa-square me-1"></i>Hình chữ nhật
+              </label>
+
+              <input
+                type="radio"
+                class="btn-check"
+                name="grabcut-mode"
+                id="paint-mode"
+                value="paint"
+              />
+              <label class="btn btn-outline-primary" for="paint-mode">
+                <i class="fas fa-paint-brush me-1"></i>Vẽ tay
+              </label>
+            </div>
+          </div>
+
+          <!-- Rectangle Mode Controls -->
+          <div id="rectangle-controls" class="grabcut-controls">
+            <div class="action-button">
+              <button id="start-rectangle" class="btn btn-info w-100">
+                <i class="fas fa-square-plus me-2"></i>Bắt đầu vẽ hình chữ nhật
+              </button>
+              <small class="text-muted d-block mt-1">
+                Kéo thả để tạo hình chữ nhật quanh vật thể
+              </small>
+            </div>
+
+            <div class="action-button">
+              <button
+                id="apply-rectangle"
+                class="btn btn-primary w-100"
+                disabled
+              >
+                <i class="fas fa-magic me-2"></i>Áp dụng GrabCut
+              </button>
+              <small class="text-muted d-block mt-1">
+                Phân đoạn vật thể trong hình chữ nhật
+              </small>
+            </div>
+          </div>
+
+          <!-- Paint Mode Controls -->
+          <div id="paint-controls" class="grabcut-controls d-none">
+            <div class="mb-3">
+              <label class="form-label">Loại nét vẽ</label>
+              <div class="btn-group w-100" role="group">
+                <input
+                  type="radio"
+                  class="btn-check"
+                  name="paint-type"
+                  id="foreground-paint"
+                  value="foreground"
+                  checked
+                />
+                <label class="btn btn-outline-success" for="foreground-paint">
+                  <i class="fas fa-paint-brush me-1"></i>Vật thể (xanh)
+                </label>
+
+                <input
+                  type="radio"
+                  class="btn-check"
+                  name="paint-type"
+                  id="background-paint"
+                  value="background"
+                />
+                <label class="btn btn-outline-danger" for="background-paint">
+                  <i class="fas fa-eraser me-1"></i>Nền (đỏ)
+                </label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label"
+                >Kích thước nét vẽ:
+                <span id="brush-size-value">10</span>px</label
+              >
+              <input
+                type="range"
+                class="form-range"
+                id="brush-size"
+                min="3"
+                max="30"
+                value="10"
+              />
+            </div>
+
+            <div class="action-button">
+              <button id="start-painting" class="btn btn-info w-100">
+                <i class="fas fa-paint-brush me-2"></i>Bắt đầu vẽ
+              </button>
+              <small class="text-muted d-block mt-1">
+                Vẽ trên vật thể (xanh) và nền (đỏ)
+              </small>
+            </div>
+
+            <div class="action-button">
+              <button id="clear-strokes" class="btn btn-warning w-100">
+                <i class="fas fa-undo me-2"></i>Xóa tất cả nét vẽ
+              </button>
+              <small class="text-muted d-block mt-1">
+                Xóa tất cả các nét vẽ đã tạo
+              </small>
+            </div>
+
+            <div class="action-button">
+              <button id="apply-strokes" class="btn btn-primary w-100" disabled>
+                <i class="fas fa-magic me-2"></i>Áp dụng GrabCut
+              </button>
+              <small class="text-muted d-block mt-1">
+                Phân đoạn từ các nét vẽ
+              </small>
+            </div>
+          </div>
+
+          <!-- Common Controls -->
+          <div class="grabcut-common-controls">
+            <div class="mb-3">
+              <label class="form-label"
+                >Số lần lặp: <span id="iterations-value">5</span></label
+              >
+              <input
+                type="range"
+                class="form-range"
+                id="grabcut-iterations"
+                min="1"
+                max="10"
+                value="5"
+              />
+              <small class="text-muted"
+                >Nhiều lần lặp = kết quả tốt hơn nhưng chậm hơn</small
+              >
+            </div>
+
+            <div class="action-button d-none" id="refine-controls">
+              <button id="refine-mask" class="btn btn-success w-100">
+                <i class="fas fa-adjust me-2"></i>Tinh chỉnh mask
+              </button>
+              <small class="text-muted d-block mt-1">
+                Vẽ thêm để tinh chỉnh kết quả
+              </small>
+            </div>
+
+            <div class="action-button">
+              <button
+                id="reset-grabcut"
+                class="btn btn-outline-secondary w-100"
+              >
+                <i class="fas fa-refresh me-2"></i>Đặt lại
+              </button>
+              <small class="text-muted d-block mt-1">
+                Xóa tất cả và bắt đầu lại
+              </small>
+            </div>
+          </div>
+
+          <hr />
+
+          <div class="mt-4">
+            <h5>Hướng dẫn GrabCut</h5>
+            <div class="small">
+              <strong>Chế độ hình chữ nhật:</strong>
+              <ol class="small">
+                <li>Chọn "Bắt đầu vẽ hình chữ nhật"</li>
+                <li>Kéo thả tạo hình chữ nhật quanh vật thể</li>
+                <li>Nhấn "Áp dụng GrabCut" để phân đoạn</li>
+              </ol>
+
+              <strong>Chế độ vẽ tay:</strong>
+              <ol class="small">
+                <li>Chọn loại nét vẽ (vật thể hoặc nền)</li>
+                <li>Vẽ trên ảnh để đánh dấu vùng</li>
+                <li>Nhấn "Áp dụng GrabCut" để phân đoạn</li>
+                <li>Sử dụng "Tinh chỉnh" để cải thiện kết quả</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generate Furniture Panel -->
+        <div class="tab-pane fade" id="generate-panel" role="tabpanel">
+          <h4 class="mb-4">Sinh nội thất mới</h4>
+
+          <!-- Colab Connection Status -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0">Kết nối Google Colab</label>
+              <span id="colab-status" class="badge bg-secondary"
+                >Chưa kết nối</span
+              >
+            </div>
+            <div class="input-group">
+              <input
+                type="text"
+                id="colab-url"
+                class="form-control"
+                placeholder="Nhập URL ngrok từ Colab"
+              />
+              <button id="connect-colab" class="btn btn-outline-primary">
+                <i class="fas fa-link"></i>
+              </button>
+            </div>
+            <small class="text-muted">Ví dụ: https://abc123.ngrok.io</small>
+          </div>
+
+          <!-- Furniture Generation Form -->
+          <div id="generation-form" style="display: none">
+            <!-- AI Image Analysis Section -->
+            <div class="mb-4 border rounded p-3 bg-light">
+              <h6 class="mb-3">
+                <i class="fas fa-robot me-2"></i>AI Phân tích ảnh tham khảo
+              </h6>
+
+              <!-- API Key Input -->
+              <div class="mb-3">
+                <label class="form-label">OpenAI API Key</label>
+                <div class="input-group">
+                  <input
+                    type="password"
+                    id="openai-api-key"
+                    class="form-control"
+                    placeholder="sk-..."
+                  />
+                  <button
+                    id="save-api-key"
+                    class="btn btn-outline-secondary"
+                    type="button"
+                  >
+                    <i class="fas fa-save"></i>
+                  </button>
+                </div>
+                <small class="text-muted"
+                  >API key sẽ được lưu tạm thời trong phiên làm việc</small
+                >
+              </div>
+
+              <!-- Reference Image Upload -->
+              <div class="mb-3">
+                <label class="form-label">Upload ảnh nội thất tham khảo</label>
+                <input
+                  type="file"
+                  id="reference-image-input"
+                  class="form-control"
+                  accept="image/*"
+                />
+                <small class="text-muted"
+                  >Upload ảnh nội thất để AI tự động tạo prompt chi tiết</small
+                >
+              </div>
+
+              <!-- Reference Image Preview -->
+              <div id="reference-preview" class="mb-3 d-none">
+                <img
+                  id="reference-image-preview"
+                  class="img-fluid rounded"
+                  style="max-height: 200px"
+                />
+                <div class="mt-2">
+                  <button id="analyze-reference" class="btn btn-primary btn-sm">
+                    <i class="fas fa-magic me-1"></i>Phân tích bằng AI
+                  </button>
+                  <button
+                    id="clear-reference"
+                    class="btn btn-outline-danger btn-sm"
+                  >
+                    <i class="fas fa-times me-1"></i>Xóa ảnh
+                  </button>
+                </div>
+              </div>
+
+              <!-- Analysis Result -->
+              <div id="analysis-result" class="d-none">
+                <div class="alert alert-success">
+                  <h6>
+                    <i class="fas fa-check-circle me-2"></i>Kết quả phân tích
+                  </h6>
+                  <div id="analysis-details"></div>
+                  <button id="use-analysis" class="btn btn-success btn-sm mt-2">
+                    <i class="fas fa-arrow-down me-1"></i>Sử dụng prompt này
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Mô tả nội thất muốn sinh</label>
+              <textarea
+                id="furniture-prompt"
+                class="form-control"
+                rows="3"
+                placeholder="Ví dụ: modern comfortable sofa, contemporary design, high quality"
+              ></textarea>
+              <small class="text-muted"
+                >Bạn có thể nhập tay hoặc sử dụng AI phân tích ảnh tham khảo ở
+                trên</small
+              >
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Loại nội thất</label>
+              <select id="furniture-type" class="form-select">
+                <option value="">Chọn loại nội thất</option>
+                <optgroup label="Nội thất chính">
+                  <option value="sofa">Sofa</option>
+                  <option value="chair">Ghế</option>
+                  <option value="table">Bàn</option>
+                  <option value="bed">Giường</option>
+                  <option value="cabinet">Tủ</option>
+                </optgroup>
+                <optgroup label="Nội thất phòng ngủ">
+                  <option value="dresser">Tủ ngăn kéo</option>
+                  <option value="nightstand">Tủ đầu giường</option>
+                  <option value="mirror">Gương</option>
+                </optgroup>
+                <optgroup label="Nội thất phòng khách">
+                  <option value="bookshelf">Kệ sách</option>
+                  <option value="tv_stand">Kệ TV</option>
+                  <option value="ottoman">Đôn sofa</option>
+                </optgroup>
+                <optgroup label="Đồ trang trí">
+                  <option value="lamp">Đèn</option>
+                  <option value="curtain">Rèm cửa</option>
+                  <option value="rug">Thảm</option>
+                  <option value="plant">Cây cảnh</option>
+                  <option value="artwork">Tranh ảnh</option>
+                  <option value="vase">Lọ hoa</option>
+                  <option value="clock">Đồng hồ</option>
+                </optgroup>
+                <optgroup label="Phụ kiện">
+                  <option value="cushion">Gối tựa</option>
+                  <option value="basket">Giỏ đựng đồ</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Gợi ý prompt</label>
+              <div id="prompt-suggestions" class="d-none">
+                <div class="suggestion-list"></div>
+              </div>
+            </div>
+
+            <!-- Advanced Settings -->
+            <div class="accordion mb-3" id="advancedSettings">
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseAdvanced"
+                  >
+                    Cài đặt nâng cao
+                  </button>
+                </h2>
+                <div id="collapseAdvanced" class="accordion-collapse collapse">
+                  <div class="accordion-body">
+                    <div class="mb-3">
+                      <label class="form-label">Negative Prompt</label>
+                      <textarea
+                        id="negative-prompt"
+                        class="form-control"
+                        rows="2"
+                        placeholder="Mô tả những gì không muốn xuất hiện"
+                      ></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label"
+                        >Số bước inference:
+                        <span id="steps-value">20</span></label
+                      >
+                      <input
+                        type="range"
+                        id="inference-steps"
+                        class="form-range"
+                        min="10"
+                        max="50"
+                        value="20"
+                      />
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label"
+                        >Guidance Scale:
+                        <span id="guidance-value">7.5</span></label
+                      >
+                      <input
+                        type="range"
+                        id="guidance-scale"
+                        class="form-range"
+                        min="1"
+                        max="20"
+                        step="0.5"
+                        value="7.5"
+                      />
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label"
+                        >Strength: <span id="strength-value">0.8</span></label
+                      >
+                      <input
+                        type="range"
+                        id="strength"
+                        class="form-range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value="0.8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-button">
+              <button
+                id="generate-furniture-button"
+                class="btn btn-warning w-100"
+                disabled
+              >
+                <i class="fas fa-wand-magic me-2"></i>Sinh nội thất
+              </button>
+              <small class="text-muted d-block mt-1"
+                >Chọn vật thể và nhập mô tả trước khi sinh</small
+              >
+            </div>
+
+            <div class="action-button">
+              <button
+                id="download-sd-button"
+                class="btn btn-outline-success w-100"
+                disabled
+              >
+                <i class="fas fa-download me-2"></i>Tải ảnh Stable Diffusion
+              </button>
+            </div>
+          </div>
+
+          <!-- SD Result Container -->
+          <div id="sd-result-container" class="result-container d-none mt-3">
+            <h5 class="mb-3">Kết quả Stable Diffusion</h5>
+            <img id="sd-result-image" class="result-image img-fluid" />
+            <div class="mt-2">
+              <small class="text-muted"
+                >Thời gian xử lý: <span id="processing-time">-</span>s</small
+              >
+            </div>
+          </div>
+
+          <hr />
+
+          <div class="mt-4">
+            <h5>Hướng dẫn sử dụng</h5>
+            <ol class="small">
+              <li>Kết nối với Google Colab bằng URL ngrok</li>
+              <li>Chọn vật thể muốn thay thế ở tab "Xóa vật thể"</li>
+              <li>
+                <strong>Tùy chọn AI:</strong> Nhập API key OpenAI và upload ảnh
+                tham khảo để AI tự tạo prompt
+              </li>
+              <li>Hoặc nhập mô tả nội thất muốn sinh bằng tay</li>
+              <li>Điều chỉnh cài đặt nâng cao nếu cần</li>
+              <li>Nhấn "Sinh nội thất" và chờ kết quả</li>
+            </ol>
+            <div class="alert alert-info mt-3">
+              <small>
+                <strong>Mẹo:</strong> Sử dụng tính năng AI phân tích ảnh để tạo
+                prompt chi tiết và chính xác hơn. Bạn cần API key OpenAI để sử
+                dụng tính năng này.
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" class="loading-overlay d-none">
+  <div class="loader"></div>
+  <div class="loading-text" id="loading-text">Đang xử lý</div>
+  <div class="loading-dots"></div>
+  <div class="loading-progress">
+    <div class="loading-progress-bar"></div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Các phần tử DOM
+    const originalImage = document.getElementById("original-image");
+    const canvas = document.getElementById("image-canvas");
+    const ctx = canvas.getContext("2d");
+    const segmentButton = document.getElementById("segment-button");
+    const inpaintButton = document.getElementById("inpaint-button");
+    const downloadButton = document.getElementById("download-button");
+    const resetButton = document.getElementById("reset-button");
+    const newObjectButton = document.getElementById("new-object-button");
+    const resultContainer = document.getElementById("result-container");
+    const resultImage = document.getElementById("result-image");
+    const loadingOverlay = document.getElementById("loading-overlay");
+    const loadingText = document.getElementById("loading-text");
+    const selectedObjectsContainer = document.getElementById(
+      "selected-objects-container"
+    );
+    const selectedObjectsList = document.getElementById(
+      "selected-objects-list"
+    );
+
+    // Biến lưu trữ trạng thái
+    let currentClickPoints = [];
+    let allObjects = [];
+    let segmentedMasks = [];
+    let processingMode = false;
+    let csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    let originalImageData = null;
+    let colorIndex = 0;
+    const colors = [
+      "#FF0000",
+      "#00FF00",
+      "#0000FF",
+      "#FFFF00",
+      "#FF00FF",
+      "#00FFFF",
+      "#FF8000",
+      "#8000FF",
+      "#0080FF",
+      "#FF0080",
+    ];
+
+    // Thiết lập canvas khi ảnh tải xong
+    originalImage.onload = function () {
+      canvas.width = originalImage.naturalWidth;
+      canvas.height = originalImage.naturalHeight;
+
+      // Hiển thị canvas, ẩn ảnh gốc
+      canvas.style.display = "block";
+      originalImage.style.display = "none";
+
+      // Vẽ ảnh lên canvas
+      ctx.drawImage(originalImage, 0, 0);
+
+      // Lưu lại trạng thái ban đầu của ảnh
+      originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    };
+
+    // Xử lý sự kiện click trên canvas
+    canvas.addEventListener("click", function (e) {
+      if (processingMode) return;
+
+      // Tính toán vị trí click chính xác
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      const x = Math.round((e.clientX - rect.left) * scaleX);
+      const y = Math.round((e.clientY - rect.top) * scaleY);
+
+      // Thêm điểm click vào danh sách
+      currentClickPoints.push([x, y]);
+
+      // Vẽ điểm đánh dấu
+      const currentColor = colors[colorIndex % colors.length];
+      ctx.fillStyle = currentColor;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kích hoạt nút phân đoạn
+      if (currentClickPoints.length > 0) {
+        segmentButton.disabled = false;
+      }
+
+      // Hiển thị thông báo
+      const instructionBadge = document.getElementById("instruction-badge");
+      instructionBadge.textContent = `Đã chọn ${currentClickPoints.length} điểm`;
+      instructionBadge.classList.remove("bg-info");
+      instructionBadge.classList.add("bg-success");
+    });
+
+    // Xử lý nút chọn vật thể mới
+    newObjectButton.addEventListener("click", function () {
+      if (currentClickPoints.length > 0) {
+        // Người dùng đang chọn một vật thể mà chưa xác nhận
+        if (
+          confirm(
+            "Bạn đang chọn một vật thể. Bạn có muốn xác nhận vật thể này trước khi bắt đầu chọn vật thể mới không?"
+          )
+        ) {
+          segmentCurrentObject();
+        } else {
+          // Nếu người dùng không muốn xác nhận, xóa các điểm đang chọn
+          resetCurrentSelection(false);
+        }
+      } else {
+        // Chỉ tăng chỉ số màu nếu không có điểm nào đang được chọn
+        colorIndex = (colorIndex + 1) % colors.length;
+        alert("Bây giờ bạn có thể chọn vật thể mới bằng cách click vào ảnh.");
+      }
+    });
+
+    // Hàm xử lý phân đoạn vật thể hiện tại
+    function segmentCurrentObject() {
+      if (currentClickPoints.length === 0) {
+        alert("Vui lòng click vào vật thể bạn muốn xóa");
+        return;
+      }
+
+      // Hiển thị loading
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang xác định vật thể...";
+      processingMode = true;
+
+      // Gửi yêu cầu phân đoạn
+      fetch("/api/segment/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          points: currentClickPoints,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            // Thêm vật thể vào danh sách
+            const objectIndex = allObjects.length;
+            const objectColor = colors[colorIndex % colors.length];
+
+            allObjects.push({
+              points: [...currentClickPoints],
+              color: objectColor,
+              mask: data.mask_url,
+              visualization: data.visualization,
+            });
+
+            segmentedMasks.push(data.mask_url);
+
+            // Hiển thị danh sách vật thể đã chọn
+            displaySelectedObjects();
+
+            // Vẽ lên canvas
+            const tempImage = new Image();
+            tempImage.onload = function () {
+              ctx.drawImage(tempImage, 0, 0, canvas.width, canvas.height);
+
+              // Đặt lại danh sách điểm hiện tại cho vật thể mới
+              resetCurrentSelection(true);
+
+              // Cho phép inpaint nếu có ít nhất một vật thể
+              if (allObjects.length > 0) {
+                inpaintButton.disabled = false;
+              }
+
+              // Ẩn loading
+              loadingOverlay.classList.add("d-none");
+              processingMode = false;
+            };
+            tempImage.src = data.visualization;
+          } else {
+            alert("Lỗi: " + data.error);
+            loadingOverlay.classList.add("d-none");
+            processingMode = false;
+          }
+        })
+        .catch((error) => {
+          alert("Đã xảy ra lỗi: " + error);
+          loadingOverlay.classList.add("d-none");
+          processingMode = false;
+        });
+    }
+
+    // Hiển thị danh sách vật thể đã chọn
+    function displaySelectedObjects() {
+      if (allObjects.length > 0) {
+        selectedObjectsContainer.classList.remove("d-none");
+
+        // Xóa nội dung cũ
+        selectedObjectsList.innerHTML = "";
+
+        // Thêm từng vật thể vào danh sách
+        allObjects.forEach((obj, index) => {
+          const objectElement = document.createElement("div");
+          objectElement.className = "selected-object";
+
+          let objectInfo = "";
+          if (obj.method) {
+            // GrabCut object
+            objectInfo = `${obj.method}`;
+            if (obj.score) {
+              objectInfo += ` (${obj.score.toFixed(2)})`;
+            }
+          } else {
+            // SAM object
+            objectInfo = `${obj.points ? obj.points.length : 0} điểm`;
+          }
+
+          objectElement.innerHTML = `
+            <span class="point-color" style="background-color: ${
+              obj.color || "#007bff"
+            }"></span>
+            Vật thể ${index + 1} (${objectInfo})
+            <button class="btn btn-sm btn-outline-danger ms-2 remove-object" data-index="${index}">
+              <i class="fas fa-times"></i>
+            </button>
+          `;
+          selectedObjectsList.appendChild(objectElement);
+        });
+
+        // Thêm sự kiện xóa vật thể
+        document.querySelectorAll(".remove-object").forEach((button) => {
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+            const index = parseInt(this.getAttribute("data-index"));
+            removeObject(index);
+          });
+        });
+      } else {
+        selectedObjectsContainer.classList.add("d-none");
+      }
+    }
+
+    // Xóa một vật thể khỏi danh sách
+    function removeObject(index) {
+      if (index >= 0 && index < allObjects.length) {
+        const removedObject = allObjects[index];
+        allObjects.splice(index, 1);
+
+        // Remove corresponding mask from segmentedMasks
+        const maskToRemove = removedObject.mask_url || removedObject.mask;
+        const maskIndex = segmentedMasks.findIndex(
+          (mask) => mask === maskToRemove
+        );
+        if (maskIndex !== -1) {
+          segmentedMasks.splice(maskIndex, 1);
+        }
+
+        // Cập nhật giao diện
+        displaySelectedObjects();
+
+        // Vẽ lại canvas với tất cả vật thể còn lại
+        redrawCanvas();
+
+        // Vô hiệu hóa nút inpaint nếu không còn vật thể nào
+        if (allObjects.length === 0) {
+          inpaintButton.disabled = true;
+        }
+      }
+    }
+
+    // Vẽ lại canvas với tất cả vật thể
+    function redrawCanvas() {
+      // Đặt lại canvas về ảnh gốc
+      ctx.putImageData(originalImageData, 0, 0);
+
+      // Nếu không có vật thể nào, dừng lại ở đây
+      if (allObjects.length === 0) {
+        return;
+      }
+
+      // Vẽ từng vật thể lên canvas
+      const drawNextObject = (index) => {
+        if (index >= allObjects.length) return;
+
+        const obj = allObjects[index];
+
+        // Skip objects without visualization
+        if (!obj.visualization) {
+          drawNextObject(index + 1);
+          return;
+        }
+
+        const img = new Image();
+        img.onload = function () {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          drawNextObject(index + 1);
+        };
+        img.src = obj.visualization;
+      };
+
+      drawNextObject(0);
+    }
+
+    // Đặt lại lựa chọn hiện tại
+    function resetCurrentSelection(incrementColorIndex) {
+      currentClickPoints = [];
+      segmentButton.disabled = true;
+
+      if (incrementColorIndex) {
+        colorIndex = (colorIndex + 1) % colors.length;
+      }
+    }
+
+    // Xử lý nút phân đoạn vật thể
+    segmentButton.addEventListener("click", function () {
+      segmentCurrentObject();
+    });
+
+    // Xử lý nút inpaint
+    inpaintButton.addEventListener("click", function () {
+      if (segmentedMasks.length === 0) {
+        alert("Vui lòng chọn ít nhất một vật thể trước khi xóa");
+        return;
+      }
+
+      // Hiển thị loading
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang xóa vật thể và phục hồi nền...";
+      processingMode = true;
+
+      // Gửi yêu cầu inpaint với danh sách tất cả các mask
+      fetch("/api/inpaint/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          masks: segmentedMasks,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            // Hiển thị kết quả
+            resultImage.src = data.result_url;
+            resultContainer.classList.remove("d-none");
+            downloadButton.disabled = false;
+
+            // Ẩn loading
+            loadingOverlay.classList.add("d-none");
+            processingMode = false;
+          } else {
+            alert("Lỗi: " + data.error);
+            loadingOverlay.classList.add("d-none");
+            processingMode = false;
+          }
+        })
+        .catch((error) => {
+          alert("Đã xảy ra lỗi: " + error);
+          loadingOverlay.classList.add("d-none");
+          processingMode = false;
+        });
+    });
+
+    // Xử lý nút tải về
+    downloadButton.addEventListener("click", function () {
+      window.location.href = "/download/";
+    });
+
+    // Xử lý nút đặt lại
+    resetButton.addEventListener("click", function () {
+      // Đặt lại canvas
+      if (originalImageData) {
+        ctx.putImageData(originalImageData, 0, 0);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(originalImage, 0, 0);
+      }
+
+      // Đặt lại trạng thái
+      currentClickPoints = [];
+      allObjects = [];
+      segmentedMasks = [];
+      colorIndex = 0;
+
+      segmentButton.disabled = true;
+      inpaintButton.disabled = true;
+      resultContainer.classList.add("d-none");
+      downloadButton.disabled = true;
+      selectedObjectsContainer.classList.add("d-none");
+    });
+
+    // ===== STABLE DIFFUSION FUNCTIONALITY =====
+
+    // Stable Diffusion elements
+    const colabUrlInput = document.getElementById("colab-url");
+    const connectColabButton = document.getElementById("connect-colab");
+    const colabStatus = document.getElementById("colab-status");
+    const generationForm = document.getElementById("generation-form");
+    const furniturePrompt = document.getElementById("furniture-prompt");
+    const furnitureType = document.getElementById("furniture-type");
+    const promptSuggestions = document.getElementById("prompt-suggestions");
+    const negativePrompt = document.getElementById("negative-prompt");
+    const inferenceSteps = document.getElementById("inference-steps");
+    const guidanceScale = document.getElementById("guidance-scale");
+    const strength = document.getElementById("strength");
+    const generateFurnitureButton = document.getElementById(
+      "generate-furniture-button"
+    );
+    const downloadSdButton = document.getElementById("download-sd-button");
+    const sdResultContainer = document.getElementById("sd-result-container");
+    const sdResultImage = document.getElementById("sd-result-image");
+    const processingTime = document.getElementById("processing-time");
+
+    // AI Image Analysis elements
+    const openaiApiKey = document.getElementById("openai-api-key");
+    const saveApiKeyButton = document.getElementById("save-api-key");
+    const referenceImageInput = document.getElementById(
+      "reference-image-input"
+    );
+    const referencePreview = document.getElementById("reference-preview");
+    const referenceImagePreview = document.getElementById(
+      "reference-image-preview"
+    );
+    const analyzeReferenceButton = document.getElementById("analyze-reference");
+    const clearReferenceButton = document.getElementById("clear-reference");
+    const analysisResult = document.getElementById("analysis-result");
+    const analysisDetails = document.getElementById("analysis-details");
+    const useAnalysisButton = document.getElementById("use-analysis");
+
+    // Variables for AI analysis
+    let currentAnalysisData = null;
+    let savedApiKey = null;
+
+    // Value display elements
+    const stepsValue = document.getElementById("steps-value");
+    const guidanceValue = document.getElementById("guidance-value");
+    const strengthValue = document.getElementById("strength-value");
+
+    // Update range value displays
+    inferenceSteps.addEventListener("input", function () {
+      stepsValue.textContent = this.value;
+    });
+
+    guidanceScale.addEventListener("input", function () {
+      guidanceValue.textContent = this.value;
+    });
+
+    strength.addEventListener("input", function () {
+      strengthValue.textContent = this.value;
+    });
+
+    // Connect to Colab
+    connectColabButton.addEventListener("click", function () {
+      const url = colabUrlInput.value.trim();
+      if (!url) {
+        alert("Vui lòng nhập URL Colab");
+        return;
+      }
+
+      colabStatus.textContent = "Đang kết nối...";
+      colabStatus.className = "badge bg-warning";
+
+      fetch("/api/set-colab-url/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({ url: url }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            if (data.status.status === "connected") {
+              colabStatus.textContent = "Đã kết nối";
+              colabStatus.className = "badge bg-success";
+              generationForm.style.display = "block";
+              loadFurnitureSuggestions();
+            } else {
+              colabStatus.textContent = "Lỗi kết nối";
+              colabStatus.className = "badge bg-danger";
+              alert("Không thể kết nối đến Colab: " + data.status.message);
+            }
+          } else {
+            colabStatus.textContent = "Lỗi";
+            colabStatus.className = "badge bg-danger";
+            alert("Lỗi: " + data.error);
+          }
+        })
+        .catch((error) => {
+          colabStatus.textContent = "Lỗi";
+          colabStatus.className = "badge bg-danger";
+          alert("Lỗi kết nối: " + error);
+        });
+    });
+
+    // Load furniture suggestions
+    function loadFurnitureSuggestions() {
+      fetch("/api/furniture-suggestions/")
+        .then((response) => response.json())
+        .then((data) => {
+          window.furnitureSuggestions = data.suggestions;
+        })
+        .catch((error) => {
+          console.error("Lỗi tải gợi ý:", error);
+        });
+    }
+
+    // Handle furniture type selection
+    furnitureType.addEventListener("change", function () {
+      const selectedType = this.value;
+      if (
+        selectedType &&
+        window.furnitureSuggestions &&
+        window.furnitureSuggestions[selectedType]
+      ) {
+        const suggestions = window.furnitureSuggestions[selectedType];
+        const suggestionList =
+          promptSuggestions.querySelector(".suggestion-list");
+
+        suggestionList.innerHTML = "";
+        suggestions.forEach((suggestion) => {
+          const button = document.createElement("button");
+          button.className = "btn btn-sm btn-outline-info me-1 mb-1";
+          button.textContent = suggestion;
+          button.addEventListener("click", function (e) {
+            e.preventDefault();
+            furniturePrompt.value = suggestion;
+            updateGenerateButton();
+          });
+          suggestionList.appendChild(button);
+        });
+
+        promptSuggestions.classList.remove("d-none");
+      } else {
+        promptSuggestions.classList.add("d-none");
+      }
+    });
+
+    // Update generate button state
+    function updateGenerateButton() {
+      const hasPrompt = furniturePrompt.value.trim().length > 0;
+      const hasObjects = allObjects.length > 0;
+      generateFurnitureButton.disabled = !(hasPrompt && hasObjects);
+    }
+
+    // Monitor prompt changes
+    furniturePrompt.addEventListener("input", updateGenerateButton);
+
+    // Generate furniture
+    generateFurnitureButton.addEventListener("click", function () {
+      const prompt = furniturePrompt.value.trim();
+      if (!prompt) {
+        alert("Vui lòng nhập mô tả nội thất");
+        return;
+      }
+
+      if (segmentedMasks.length === 0) {
+        alert("Vui lòng chọn ít nhất một vật thể để thay thế");
+        return;
+      }
+
+      // Show loading
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang sinh nội thất với Stable Diffusion...";
+      processingMode = true;
+
+      const requestData = {
+        prompt: prompt,
+        negative_prompt: negativePrompt.value.trim(),
+        num_inference_steps: parseInt(inferenceSteps.value),
+        guidance_scale: parseFloat(guidanceScale.value),
+        strength: parseFloat(strength.value),
+        masks: segmentedMasks,
+      };
+
+      fetch("/api/generate-furniture/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify(requestData),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            // Show result
+            sdResultImage.src = data.result_url;
+            processingTime.textContent = data.processing_time || 0;
+            sdResultContainer.classList.remove("d-none");
+            downloadSdButton.disabled = false;
+
+            // Hide loading
+            loadingOverlay.classList.add("d-none");
+            processingMode = false;
+
+            // Show success message
+            alert(
+              "Sinh nội thất thành công! Thời gian xử lý: " +
+                (data.processing_time || 0) +
+                "s"
+            );
+          } else {
+            alert("Lỗi sinh nội thất: " + data.error);
+            loadingOverlay.classList.add("d-none");
+            processingMode = false;
+          }
+        })
+        .catch((error) => {
+          alert("Lỗi: " + error);
+          loadingOverlay.classList.add("d-none");
+          processingMode = false;
+        });
+    });
+
+    // Download SD result
+    downloadSdButton.addEventListener("click", function () {
+      window.location.href = "/download-sd/";
+    });
+
+    // ===== AI IMAGE ANALYSIS FUNCTIONALITY =====
+
+    // Save API Key
+    saveApiKeyButton.addEventListener("click", function () {
+      const apiKey = openaiApiKey.value.trim();
+      if (!apiKey) {
+        alert("Vui lòng nhập API key");
+        return;
+      }
+
+      if (!apiKey.startsWith("sk-")) {
+        alert("API key OpenAI phải bắt đầu bằng 'sk-'");
+        return;
+      }
+
+      savedApiKey = apiKey;
+      alert("API key đã được lưu tạm thời");
+
+      // Ẩn API key sau khi lưu
+      openaiApiKey.type = "password";
+    });
+
+    // Handle reference image upload
+    referenceImageInput.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        alert("Vui lòng chọn file ảnh");
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert("File ảnh quá lớn. Vui lòng chọn file nhỏ hơn 10MB");
+        return;
+      }
+
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        referenceImagePreview.src = e.target.result;
+        referencePreview.classList.remove("d-none");
+        analysisResult.classList.add("d-none");
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to server
+      uploadReferenceImage(file);
+    });
+
+    // Upload reference image to server
+    function uploadReferenceImage(file) {
+      const formData = new FormData();
+      formData.append("reference_image", file);
+
+      fetch("/api/upload-reference/", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": csrfToken,
+        },
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            console.log("Upload thành công:", data.message);
+          } else {
+            alert("Lỗi upload: " + data.error);
+          }
+        })
+        .catch((error) => {
+          alert("Lỗi upload: " + error);
+        });
+    }
+
+    // Analyze reference image
+    analyzeReferenceButton.addEventListener("click", function () {
+      if (!savedApiKey) {
+        alert("Vui lòng nhập và lưu API key trước");
+        return;
+      }
+
+      // Show loading
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang phân tích ảnh bằng AI...";
+
+      fetch("/api/analyze-reference/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          api_key: savedApiKey,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          loadingOverlay.classList.add("d-none");
+
+          if (data.success) {
+            currentAnalysisData = data;
+            displayAnalysisResult(data);
+          } else {
+            alert("Lỗi phân tích: " + data.error);
+          }
+        })
+        .catch((error) => {
+          loadingOverlay.classList.add("d-none");
+          alert("Lỗi: " + error);
+        });
+    });
+
+    // Display analysis result
+    function displayAnalysisResult(data) {
+      const analysis = data.analysis;
+
+      let detailsHtml = `
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Loại nội thất:</strong> ${
+              analysis.furniture_type || "Không xác định"
+            }<br>
+            <strong>Phong cách:</strong> ${analysis.style || "Không xác định"}
+          </div>
+          <div class="col-md-6">
+            <strong>Chất liệu:</strong> ${
+              analysis.materials
+                ? analysis.materials.join(", ")
+                : "Không xác định"
+            }<br>
+            <strong>Màu sắc:</strong> ${
+              analysis.colors ? analysis.colors.join(", ") : "Không xác định"
+            }
+          </div>
+        </div>
+        <div class="mt-2">
+          <strong>Prompt chi tiết:</strong><br>
+          <div class="bg-light p-2 rounded mt-1">
+            <small>${data.enhanced_prompt}</small>
+          </div>
+        </div>
+      `;
+
+      analysisDetails.innerHTML = detailsHtml;
+      analysisResult.classList.remove("d-none");
+
+      // Auto-update furniture type if detected
+      if (analysis.furniture_type && analysis.furniture_type !== "unknown") {
+        const typeMapping = {
+          // Nội thất chính
+          sofa: "sofa",
+          chair: "chair",
+          table: "table",
+          bed: "bed",
+          cabinet: "cabinet",
+          // Nội thất phòng ngủ
+          dresser: "dresser",
+          nightstand: "nightstand",
+          mirror: "mirror",
+          // Nội thất phòng khách
+          bookshelf: "bookshelf",
+          "tv stand": "tv_stand",
+          tv_stand: "tv_stand",
+          ottoman: "ottoman",
+          // Đồ trang trí
+          lamp: "lamp",
+          light: "lamp",
+          curtain: "curtain",
+          curtains: "curtain",
+          rug: "rug",
+          carpet: "rug",
+          plant: "plant",
+          artwork: "artwork",
+          art: "artwork",
+          painting: "artwork",
+          vase: "vase",
+          clock: "clock",
+          // Phụ kiện
+          cushion: "cushion",
+          pillow: "cushion",
+          basket: "basket",
+        };
+
+        const mappedType = typeMapping[analysis.furniture_type.toLowerCase()];
+        if (mappedType) {
+          furnitureType.value = mappedType;
+          furnitureType.dispatchEvent(new Event("change"));
+        }
+      }
+
+      // Auto-update negative prompt
+      if (data.negative_prompt) {
+        negativePrompt.value = data.negative_prompt;
+      }
+    }
+
+    // Use analysis result
+    useAnalysisButton.addEventListener("click", function () {
+      if (currentAnalysisData && currentAnalysisData.enhanced_prompt) {
+        furniturePrompt.value = currentAnalysisData.enhanced_prompt;
+        updateGenerateButton();
+        alert("Prompt đã được áp dụng!");
+      }
+    });
+
+    // Clear reference image
+    clearReferenceButton.addEventListener("click", function () {
+      referenceImageInput.value = "";
+      referencePreview.classList.add("d-none");
+      analysisResult.classList.add("d-none");
+      currentAnalysisData = null;
+    });
+
+    // Check Colab status on page load
+    fetch("/api/check-colab-status/")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "connected") {
+          colabStatus.textContent = "Đã kết nối";
+          colabStatus.className = "badge bg-success";
+          generationForm.style.display = "block";
+          loadFurnitureSuggestions();
+        } else {
+          colabStatus.textContent = "Chưa kết nối";
+          colabStatus.className = "badge bg-secondary";
+        }
+      })
+      .catch((error) => {
+        console.error("Lỗi kiểm tra trạng thái Colab:", error);
+      });
+
+    // Update generate button when objects change
+    const originalDisplaySelectedObjects = displaySelectedObjects;
+    displaySelectedObjects = function () {
+      originalDisplaySelectedObjects();
+      updateGenerateButton();
+    };
+
+    // ===== GRABCUT FUNCTIONALITY =====
+
+    // GrabCut variables
+    let grabcutMode = "rectangle";
+    let isDrawingRectangle = false;
+    let isPainting = false;
+    let rectangleStart = null;
+    let currentRectangle = null;
+    let foregroundStrokes = [];
+    let backgroundStrokes = [];
+    let currentStroke = [];
+    let paintType = "foreground";
+    let brushSize = 10;
+    let currentGrabcutMask = null;
+    let isRefinementMode = false;
+
+    // GrabCut DOM elements
+    const rectangleModeRadio = document.getElementById("rectangle-mode");
+    const paintModeRadio = document.getElementById("paint-mode");
+    const rectangleControls = document.getElementById("rectangle-controls");
+    const paintControls = document.getElementById("paint-controls");
+    const startRectangleButton = document.getElementById("start-rectangle");
+    const applyRectangleButton = document.getElementById("apply-rectangle");
+    const startPaintingButton = document.getElementById("start-painting");
+    const clearStrokesButton = document.getElementById("clear-strokes");
+    const applyStrokesButton = document.getElementById("apply-strokes");
+    const foregroundPaintRadio = document.getElementById("foreground-paint");
+    const backgroundPaintRadio = document.getElementById("background-paint");
+    const brushSizeSlider = document.getElementById("brush-size");
+    const brushSizeValue = document.getElementById("brush-size-value");
+    const grabcutIterationsSlider =
+      document.getElementById("grabcut-iterations");
+    const iterationsValue = document.getElementById("iterations-value");
+    const refineControls = document.getElementById("refine-controls");
+    const refineMaskButton = document.getElementById("refine-mask");
+    const resetGrabcutButton = document.getElementById("reset-grabcut");
+
+    // Mode switching
+    rectangleModeRadio.addEventListener("change", function () {
+      if (this.checked) {
+        grabcutMode = "rectangle";
+        rectangleControls.classList.remove("d-none");
+        paintControls.classList.add("d-none");
+        resetGrabcutCanvas();
+      }
+    });
+
+    paintModeRadio.addEventListener("change", function () {
+      if (this.checked) {
+        grabcutMode = "paint";
+        rectangleControls.classList.add("d-none");
+        paintControls.classList.remove("d-none");
+        resetGrabcutCanvas();
+      }
+    });
+
+    // Paint type selection
+    foregroundPaintRadio.addEventListener("change", function () {
+      if (this.checked) paintType = "foreground";
+    });
+
+    backgroundPaintRadio.addEventListener("change", function () {
+      if (this.checked) paintType = "background";
+    });
+
+    // Brush size control
+    brushSizeSlider.addEventListener("input", function () {
+      brushSize = parseInt(this.value);
+      brushSizeValue.textContent = brushSize;
+    });
+
+    // Iterations control
+    grabcutIterationsSlider.addEventListener("input", function () {
+      iterationsValue.textContent = this.value;
+    });
+
+    // Start rectangle drawing
+    startRectangleButton.addEventListener("click", function () {
+      if (!processingMode) {
+        isDrawingRectangle = true;
+        canvas.style.cursor = "crosshair";
+        startRectangleButton.disabled = true;
+        startRectangleButton.innerHTML =
+          '<i class="fas fa-square me-2"></i>Đang vẽ... (kéo thả)';
+      }
+    });
+
+    // Start painting
+    startPaintingButton.addEventListener("click", function () {
+      if (!processingMode) {
+        isPainting = true;
+        canvas.style.cursor = "crosshair";
+        startPaintingButton.disabled = true;
+        startPaintingButton.innerHTML =
+          '<i class="fas fa-paint-brush me-2"></i>Đang vẽ... (click để dừng)';
+        applyStrokesButton.disabled = false;
+      }
+    });
+
+    // Clear strokes
+    clearStrokesButton.addEventListener("click", function () {
+      foregroundStrokes = [];
+      backgroundStrokes = [];
+      currentStroke = [];
+      redrawImageWithStrokes();
+      applyStrokesButton.disabled = true;
+    });
+
+    // Apply rectangle GrabCut
+    applyRectangleButton.addEventListener("click", function () {
+      if (currentRectangle && !processingMode) {
+        applyGrabCutRectangle();
+      }
+    });
+
+    // Apply strokes GrabCut
+    applyStrokesButton.addEventListener("click", function () {
+      if (
+        (foregroundStrokes.length > 0 || backgroundStrokes.length > 0) &&
+        !processingMode
+      ) {
+        applyGrabCutStrokes();
+      }
+    });
+
+    // Refine mask
+    refineMaskButton.addEventListener("click", function () {
+      if (!processingMode && currentGrabcutMask) {
+        isRefinementMode = true;
+        isPainting = true;
+        canvas.style.cursor = "crosshair";
+        refineMaskButton.disabled = true;
+        refineMaskButton.innerHTML =
+          '<i class="fas fa-adjust me-2"></i>Đang tinh chỉnh...';
+
+        // Switch to paint mode for refinement
+        paintModeRadio.checked = true;
+        paintModeRadio.dispatchEvent(new Event("change"));
+      }
+    });
+
+    // Reset GrabCut
+    resetGrabcutButton.addEventListener("click", function () {
+      resetGrabcutCanvas();
+    });
+
+    // Enhanced canvas click handler for GrabCut
+    canvas.addEventListener("click", function (e) {
+      // Handle GrabCut specific interactions first
+      if (isPainting) {
+        // Stop painting
+        isPainting = false;
+        canvas.style.cursor = "default";
+
+        if (isRefinementMode) {
+          refineMaskButton.disabled = false;
+          refineMaskButton.innerHTML =
+            '<i class="fas fa-adjust me-2"></i>Tinh chỉnh mask';
+          applyGrabCutRefinement();
+        } else {
+          startPaintingButton.disabled = false;
+          startPaintingButton.innerHTML =
+            '<i class="fas fa-paint-brush me-2"></i>Bắt đầu vẽ';
+        }
+        return;
+      }
+
+      // Only process SAM clicks if not in GrabCut modes
+      if (!isDrawingRectangle && !isPainting && !processingMode) {
+        // Original SAM functionality
+        // Tính toán vị trí click chính xác
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = Math.round((e.clientX - rect.left) * scaleX);
+        const y = Math.round((e.clientY - rect.top) * scaleY);
+
+        // Thêm điểm click vào danh sách
+        currentClickPoints.push([x, y]);
+
+        // Vẽ điểm đánh dấu
+        const currentColor = colors[colorIndex % colors.length];
+        ctx.fillStyle = currentColor;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Kích hoạt nút phân đoạn
+        if (currentClickPoints.length > 0) {
+          segmentButton.disabled = false;
+        }
+
+        // Hiển thị thông báo
+        const instructionBadge = document.getElementById("instruction-badge");
+        instructionBadge.textContent = `Đã chọn ${currentClickPoints.length} điểm`;
+        instructionBadge.classList.remove("bg-info");
+        instructionBadge.classList.add("bg-success");
+      }
+    });
+
+    // Mouse events for rectangle drawing
+    canvas.addEventListener("mousedown", function (e) {
+      if (isDrawingRectangle && !processingMode) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        rectangleStart = {
+          x: Math.round((e.clientX - rect.left) * scaleX),
+          y: Math.round((e.clientY - rect.top) * scaleY),
+        };
+      }
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      if (isDrawingRectangle && rectangleStart && !processingMode) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const currentX = Math.round((e.clientX - rect.left) * scaleX);
+        const currentY = Math.round((e.clientY - rect.top) * scaleY);
+
+        // Redraw image and rectangle
+        ctx.putImageData(originalImageData, 0, 0);
+
+        // Draw rectangle
+        ctx.strokeStyle = "#00FF00";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          rectangleStart.x,
+          rectangleStart.y,
+          currentX - rectangleStart.x,
+          currentY - rectangleStart.y
+        );
+      } else if (isPainting && !processingMode) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = Math.round((e.clientX - rect.left) * scaleX);
+        const y = Math.round((e.clientY - rect.top) * scaleY);
+
+        currentStroke.push([x, y]);
+
+        // Draw current stroke
+        const color = paintType === "foreground" ? "#00FF00" : "#FF0000";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        if (currentStroke.length > 1) {
+          const prevPoint = currentStroke[currentStroke.length - 2];
+          ctx.beginPath();
+          ctx.moveTo(prevPoint[0], prevPoint[1]);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+      }
+    });
+
+    canvas.addEventListener("mouseup", function (e) {
+      if (isDrawingRectangle && rectangleStart && !processingMode) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const endX = Math.round((e.clientX - rect.left) * scaleX);
+        const endY = Math.round((e.clientY - rect.top) * scaleY);
+
+        currentRectangle = [
+          Math.min(rectangleStart.x, endX),
+          Math.min(rectangleStart.y, endY),
+          Math.abs(endX - rectangleStart.x),
+          Math.abs(endY - rectangleStart.y),
+        ];
+
+        isDrawingRectangle = false;
+        canvas.style.cursor = "default";
+        startRectangleButton.disabled = false;
+        startRectangleButton.innerHTML =
+          '<i class="fas fa-square-plus me-2"></i>Bắt đầu vẽ hình chữ nhật';
+        applyRectangleButton.disabled = false;
+      } else if (isPainting && currentStroke.length > 0) {
+        // Save current stroke
+        if (paintType === "foreground") {
+          foregroundStrokes.push([...currentStroke]);
+        } else {
+          backgroundStrokes.push([...currentStroke]);
+        }
+        currentStroke = [];
+      }
+    });
+
+    // Apply GrabCut with rectangle
+    function applyGrabCutRectangle() {
+      if (!currentRectangle) return;
+
+      processingMode = true;
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang áp dụng GrabCut...";
+
+      const iterations = parseInt(grabcutIterationsSlider.value);
+
+      fetch("/api/grabcut-rectangle/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          rectangle: currentRectangle,
+          iterations: iterations,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+
+          if (data.success) {
+            // Display result
+            const resultImg = new Image();
+            resultImg.onload = function () {
+              ctx.drawImage(resultImg, 0, 0, canvas.width, canvas.height);
+            };
+            resultImg.src = data.visualization;
+            currentGrabcutMask = data.mask_url;
+
+            // Show refinement controls
+            refineControls.classList.remove("d-none");
+
+            // Add to selected objects
+            addSelectedObject(data.mask_url, data.score, "GrabCut Rectangle");
+
+            alert(`GrabCut hoàn thành! Điểm số: ${data.score.toFixed(2)}`);
+          } else {
+            alert("Lỗi GrabCut: " + data.error);
+          }
+        })
+        .catch((error) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+          alert("Lỗi: " + error);
+        });
+    }
+
+    // Apply GrabCut with strokes
+    function applyGrabCutStrokes() {
+      if (foregroundStrokes.length === 0 && backgroundStrokes.length === 0)
+        return;
+
+      processingMode = true;
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang áp dụng GrabCut...";
+
+      const iterations = parseInt(grabcutIterationsSlider.value);
+
+      fetch("/api/grabcut-strokes/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          foreground_strokes: foregroundStrokes,
+          background_strokes: backgroundStrokes,
+          iterations: iterations,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+
+          if (data.success) {
+            // Display result
+            const resultImg = new Image();
+            resultImg.onload = function () {
+              ctx.drawImage(resultImg, 0, 0, canvas.width, canvas.height);
+            };
+            resultImg.src = data.visualization;
+            currentGrabcutMask = data.mask_url;
+
+            // Show refinement controls
+            refineControls.classList.remove("d-none");
+
+            // Add to selected objects
+            addSelectedObject(data.mask_url, data.score, "GrabCut Strokes");
+
+            alert(`GrabCut hoàn thành! Điểm số: ${data.score.toFixed(2)}`);
+          } else {
+            alert("Lỗi GrabCut: " + data.error);
+          }
+        })
+        .catch((error) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+          alert("Lỗi: " + error);
+        });
+    }
+
+    // Apply GrabCut refinement
+    function applyGrabCutRefinement() {
+      if (
+        !currentGrabcutMask ||
+        (foregroundStrokes.length === 0 && backgroundStrokes.length === 0)
+      )
+        return;
+
+      processingMode = true;
+      loadingOverlay.classList.remove("d-none");
+      loadingText.textContent = "Đang tinh chỉnh mask...";
+
+      const iterations = parseInt(grabcutIterationsSlider.value);
+
+      fetch("/api/refine-grabcut/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          mask_url: currentGrabcutMask,
+          foreground_strokes: foregroundStrokes,
+          background_strokes: backgroundStrokes,
+          iterations: iterations,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+          isRefinementMode = false;
+
+          if (data.success) {
+            // Display result
+            const resultImg = new Image();
+            resultImg.onload = function () {
+              ctx.drawImage(resultImg, 0, 0, canvas.width, canvas.height);
+            };
+            resultImg.src = data.visualization;
+            currentGrabcutMask = data.mask_url;
+
+            // Update selected objects
+            updateSelectedObject(data.mask_url, data.score, "GrabCut Refined");
+
+            // Clear strokes for next refinement
+            foregroundStrokes = [];
+            backgroundStrokes = [];
+
+            alert(`Tinh chỉnh hoàn thành! Điểm số: ${data.score.toFixed(2)}`);
+          } else {
+            alert("Lỗi tinh chỉnh: " + data.error);
+          }
+        })
+        .catch((error) => {
+          processingMode = false;
+          loadingOverlay.classList.add("d-none");
+          isRefinementMode = false;
+          alert("Lỗi: " + error);
+        });
+    }
+
+    // Reset GrabCut canvas
+    function resetGrabcutCanvas() {
+      // Reset variables
+      isDrawingRectangle = false;
+      isPainting = false;
+      isRefinementMode = false;
+      rectangleStart = null;
+      currentRectangle = null;
+      foregroundStrokes = [];
+      backgroundStrokes = [];
+      currentStroke = [];
+      currentGrabcutMask = null;
+
+      // Reset UI
+      canvas.style.cursor = "crosshair";
+      startRectangleButton.disabled = false;
+      applyRectangleButton.disabled = true;
+      startPaintingButton.disabled = false;
+      applyStrokesButton.disabled = true;
+      refineMaskButton.disabled = false;
+      refineControls.classList.add("d-none");
+
+      // Reset button text
+      startRectangleButton.innerHTML =
+        '<i class="fas fa-square-plus me-2"></i>Bắt đầu vẽ hình chữ nhật';
+      startPaintingButton.innerHTML =
+        '<i class="fas fa-paint-brush me-2"></i>Bắt đầu vẽ';
+      refineMaskButton.innerHTML =
+        '<i class="fas fa-adjust me-2"></i>Tinh chỉnh mask';
+
+      // Redraw original image
+      if (originalImageData) {
+        ctx.putImageData(originalImageData, 0, 0);
+      }
+    }
+
+    // Redraw image with strokes
+    function redrawImageWithStrokes() {
+      if (!originalImageData) return;
+
+      // Redraw original image
+      ctx.putImageData(originalImageData, 0, 0);
+
+      // Draw foreground strokes
+      ctx.strokeStyle = "#00FF00";
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      foregroundStrokes.forEach((stroke) => {
+        if (stroke.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(stroke[0][0], stroke[0][1]);
+          for (let i = 1; i < stroke.length; i++) {
+            ctx.lineTo(stroke[i][0], stroke[i][1]);
+          }
+          ctx.stroke();
+        }
+      });
+
+      // Draw background strokes
+      ctx.strokeStyle = "#FF0000";
+      backgroundStrokes.forEach((stroke) => {
+        if (stroke.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(stroke[0][0], stroke[0][1]);
+          for (let i = 1; i < stroke.length; i++) {
+            ctx.lineTo(stroke[i][0], stroke[i][1]);
+          }
+          ctx.stroke();
+        }
+      });
+    }
+
+    // Helper function to add selected object
+    function addSelectedObject(maskUrl, score, method) {
+      const objectData = {
+        points: [], // Empty points for GrabCut objects
+        color: colors[colorIndex % colors.length],
+        mask: maskUrl,
+        mask_url: maskUrl, // Keep both for compatibility
+        score: score,
+        method: method,
+        visualization: "", // Will be updated if needed
+      };
+
+      allObjects.push(objectData);
+      segmentedMasks.push(maskUrl);
+      displaySelectedObjects();
+
+      // Enable inpaint button
+      inpaintButton.disabled = false;
+    }
+
+    // Helper function to update selected object
+    function updateSelectedObject(maskUrl, score, method) {
+      // Find and update the existing object
+      const existingIndex = allObjects.findIndex(
+        (obj) => (obj.mask_url || obj.mask) === currentGrabcutMask
+      );
+      if (existingIndex !== -1) {
+        allObjects[existingIndex].mask = maskUrl;
+        allObjects[existingIndex].mask_url = maskUrl;
+        allObjects[existingIndex].score = score;
+        allObjects[existingIndex].method = method;
+
+        // Update segmentedMasks as well
+        const maskIndex = segmentedMasks.findIndex(
+          (mask) => mask === currentGrabcutMask
+        );
+        if (maskIndex !== -1) {
+          segmentedMasks[maskIndex] = maskUrl;
+        }
+
+        displaySelectedObjects();
+      }
+    }
+  });
+</script>
+{% endblock %}

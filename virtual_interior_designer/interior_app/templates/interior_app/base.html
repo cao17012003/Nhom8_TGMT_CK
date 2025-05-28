@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Virtual Interior Designer{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <link rel="stylesheet" href="/static/css/animations.css" />
+
+    <style>
+      :root {
+        --primary-color: #667eea;
+        --secondary-color: #764ba2;
+        --accent-color: #f093fb;
+        --text-dark: #2d3748;
+        --text-light: #718096;
+        --bg-light: #f7fafc;
+        --bg-white: #ffffff;
+        --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+          0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        --gradient-primary: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          var(--secondary-color) 100%
+        );
+        --gradient-accent: linear-gradient(
+          135deg,
+          var(--accent-color) 0%,
+          var(--primary-color) 100%
+        );
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+        color: var(--text-dark);
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      /* Animated Background */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+            circle at 20% 80%,
+            rgba(120, 119, 198, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 20%,
+            rgba(255, 119, 198, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 40% 40%,
+            rgba(120, 219, 255, 0.2) 0%,
+            transparent 50%
+          );
+        z-index: -1;
+        animation: float 20s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0px) rotate(0deg);
+        }
+        33% {
+          transform: translateY(-20px) rotate(1deg);
+        }
+        66% {
+          transform: translateY(10px) rotate(-1deg);
+        }
+      }
+
+      /* Glass morphism effect */
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+      }
+
+      /* Header Styles */
+      .header-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: var(--shadow-lg);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .navbar {
+        padding: 1rem 0;
+      }
+
+      .navbar-brand {
+        font-family: "Poppins", sans-serif;
+        font-weight: 700;
+        font-size: 1.5rem;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        transition: all 0.3s ease;
+      }
+
+      .navbar-brand:hover {
+        transform: scale(1.05);
+      }
+
+      .navbar-brand i {
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-right: 0.5rem;
+      }
+
+      .nav-link {
+        font-weight: 500;
+        color: var(--text-dark) !important;
+        transition: all 0.3s ease;
+        position: relative;
+        padding: 0.5rem 1rem !important;
+        border-radius: 10px;
+      }
+
+      .nav-link::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 0;
+        height: 2px;
+        background: var(--gradient-primary);
+        transition: all 0.3s ease;
+        transform: translateX(-50%);
+      }
+
+      .nav-link:hover::before {
+        width: 80%;
+      }
+
+      .nav-link:hover {
+        color: var(--primary-color) !important;
+        transform: translateY(-2px);
+      }
+
+      /* Main Container */
+      .main-container {
+        min-height: calc(100vh - 200px);
+        padding: 3rem 0;
+        position: relative;
+      }
+
+      /* Card Styles */
+      .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        box-shadow: var(--shadow-xl);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.4),
+          transparent
+        );
+        transition: left 0.5s;
+      }
+
+      .card:hover::before {
+        left: 100%;
+      }
+
+      .card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: var(--shadow-xl), 0 0 40px rgba(102, 126, 234, 0.3);
+      }
+
+      .card-header {
+        background: var(--gradient-primary) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 1.5rem;
+      }
+
+      /* Button Styles */
+      .btn {
+        font-weight: 500;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: none;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.3s ease;
+      }
+
+      .btn:hover::before {
+        width: 300px;
+        height: 300px;
+      }
+
+      .btn-primary {
+        background: var(--gradient-primary);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-primary:hover {
+        background: var(--gradient-primary);
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      }
+
+      .btn-warning {
+        background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+      }
+
+      .btn-info {
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+      }
+
+      /* Footer */
+      .footer {
+        background: rgba(45, 55, 72, 0.95);
+        backdrop-filter: blur(20px);
+        color: #e2e8f0;
+        padding: 3rem 0 1rem;
+        margin-top: 4rem;
+        position: relative;
+      }
+
+      .footer::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: var(--gradient-primary);
+      }
+
+      .footer h5 {
+        color: white;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+
+      .footer a {
+        color: #cbd5e0;
+        text-decoration: none;
+        transition: all 0.3s ease;
+      }
+
+      .footer a:hover {
+        color: var(--primary-color);
+        transform: translateX(5px);
+      }
+
+      /* Animations */
+      .fade-in {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      .slide-in-left {
+        opacity: 0;
+        transform: translateX(-50px);
+      }
+
+      .slide-in-right {
+        opacity: 0;
+        transform: translateX(50px);
+      }
+
+      .scale-in {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+
+      /* Loading Animation */
+      .loading-dots {
+        display: inline-block;
+      }
+
+      .loading-dots::after {
+        content: "";
+        animation: dots 1.5s steps(5, end) infinite;
+      }
+
+      @keyframes dots {
+        0%,
+        20% {
+          content: "";
+        }
+        40% {
+          content: ".";
+        }
+        60% {
+          content: "..";
+        }
+        80%,
+        100% {
+          content: "...";
+        }
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .main-container {
+          padding: 2rem 0;
+        }
+
+        .card {
+          margin-bottom: 2rem;
+        }
+
+        .navbar-brand {
+          font-size: 1.25rem;
+        }
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--gradient-primary);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--gradient-accent);
+      }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    <!-- Loading Screen -->
+    <div
+      id="loading-screen"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        flex-direction: column;
+      "
+    >
+      <div
+        style="
+          width: 80px;
+          height: 80px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid #ffffff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 20px;
+        "
+      ></div>
+      <h3 style="color: white; font-family: 'Poppins', sans-serif; margin: 0">
+        Virtual Interior Designer
+      </h3>
+      <p style="color: rgba(255, 255, 255, 0.8); margin: 10px 0 0 0">
+        Đang tải...
+      </p>
+    </div>
+
+    <!-- Header -->
+    <header class="header-container">
+      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+          <a class="navbar-brand" href="{% url 'index' %}">
+            <i class="fas fa-home me-2"></i>Virtual Interior Designer
+          </a>
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarNav"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'index' %}">Trang chủ</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'upload_image' %}"
+                  >Tải lên ảnh</a
+                >
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'about' %}">Giới thiệu</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+      <div class="container">{% block content %}{% endblock %}</div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-4 mb-4">
+            <h5>Virtual Interior Designer</h5>
+            <p class="text-muted">
+              Ứng dụng AI giúp bạn dễ dàng tùy chỉnh không gian nội thất.
+            </p>
+          </div>
+          <div class="col-md-2 mb-4">
+            <h5>Liên kết</h5>
+            <ul class="list-unstyled">
+              <li><a href="{% url 'index' %}">Trang chủ</a></li>
+              <li><a href="{% url 'about' %}">Giới thiệu</a></li>
+              <li><a href="{% url 'upload_image' %}">Tải lên ảnh</a></li>
+            </ul>
+          </div>
+          <div class="col-md-3 mb-4">
+            <h5>Công nghệ</h5>
+            <ul class="list-unstyled">
+              <li>
+                <a href="https://segment-anything.com/" target="_blank"
+                  >SAM Model</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/advimman/lama" target="_blank"
+                  >LaMa Model</a
+                >
+              </li>
+              <li>
+                <a href="https://www.djangoproject.com/" target="_blank"
+                  >Django Framework</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-3 mb-4">
+            <h5>Liên hệ</h5>
+            <ul class="list-unstyled">
+              <li><i class="fas fa-envelope me-2"></i> contact@vid-app.com</li>
+              <li><i class="fas fa-phone me-2"></i> +84 123 456 789</li>
+            </ul>
+          </div>
+        </div>
+        <hr />
+        <div class="text-center">
+          <p>&copy; 2025 Virtual Interior Designer</p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap & jQuery JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Main JavaScript -->
+    <script src="/static/js/main.js"></script>
+
+    <!-- GSAP Animations -->
+    <script>
+      // Register ScrollTrigger plugin
+      gsap.registerPlugin(ScrollTrigger);
+
+      // Page load animations
+      document.addEventListener("DOMContentLoaded", function () {
+        // Set initial states
+        gsap.set(".navbar", { y: -100, opacity: 0 });
+        gsap.set(".main-container", { y: 50, opacity: 0 });
+
+        // Create timeline for page load
+        const tl = gsap.timeline();
+
+        tl.to(".navbar", {
+          duration: 1,
+          y: 0,
+          opacity: 1,
+          ease: "power3.out",
+        }).to(
+          ".main-container",
+          {
+            duration: 1.2,
+            y: 0,
+            opacity: 1,
+            ease: "power3.out",
+          },
+          "-=0.7"
+        );
+
+        // Animate cards with stagger using ScrollTrigger
+        gsap.utils.toArray(".card").forEach((card, index) => {
+          gsap.fromTo(
+            card,
+            { y: 100, opacity: 0 },
+            {
+              duration: 0.8,
+              y: 0,
+              opacity: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: card,
+                start: "top 85%",
+                end: "bottom 15%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        // Animate buttons with ScrollTrigger
+        gsap.utils.toArray(".btn").forEach((btn, index) => {
+          gsap.fromTo(
+            btn,
+            { scale: 0.8, opacity: 0 },
+            {
+              duration: 0.6,
+              scale: 1,
+              opacity: 1,
+              ease: "back.out(1.7)",
+              scrollTrigger: {
+                trigger: btn,
+                start: "top 90%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        // Animate footer
+        gsap.from(".footer", {
+          duration: 1,
+          y: 100,
+          opacity: 0,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: ".footer",
+            start: "top 90%",
+            toggleActions: "play none none reverse",
+          },
+        });
+
+        // Animate elements with specific classes
+        gsap.utils.toArray(".fade-in").forEach((element) => {
+          gsap.fromTo(
+            element,
+            { y: 50, opacity: 0 },
+            {
+              duration: 1,
+              y: 0,
+              opacity: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: element,
+                start: "top 80%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        gsap.utils.toArray(".slide-in-left").forEach((element) => {
+          gsap.fromTo(
+            element,
+            { x: -100, opacity: 0 },
+            {
+              duration: 1,
+              x: 0,
+              opacity: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: element,
+                start: "top 80%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        gsap.utils.toArray(".slide-in-right").forEach((element) => {
+          gsap.fromTo(
+            element,
+            { x: 100, opacity: 0 },
+            {
+              duration: 1,
+              x: 0,
+              opacity: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: element,
+                start: "top 80%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        gsap.utils.toArray(".scale-in").forEach((element) => {
+          gsap.fromTo(
+            element,
+            { scale: 0.5, opacity: 0 },
+            {
+              duration: 0.8,
+              scale: 1,
+              opacity: 1,
+              ease: "back.out(1.7)",
+              scrollTrigger: {
+                trigger: element,
+                start: "top 80%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+
+        // Hover animations for cards
+        document.querySelectorAll(".card").forEach((card) => {
+          card.addEventListener("mouseenter", () => {
+            gsap.to(card, {
+              duration: 0.3,
+              y: -10,
+              scale: 1.02,
+              boxShadow: "0 20px 40px rgba(102, 126, 234, 0.3)",
+              ease: "power2.out",
+            });
+          });
+
+          card.addEventListener("mouseleave", () => {
+            gsap.to(card, {
+              duration: 0.3,
+              y: 0,
+              scale: 1,
+              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+              ease: "power2.out",
+            });
+          });
+        });
+
+        // Button click animation
+        document.querySelectorAll(".btn").forEach((btn) => {
+          btn.addEventListener("click", function (e) {
+            // Create ripple effect
+            const ripple = document.createElement("span");
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+
+            ripple.style.width = ripple.style.height = size + "px";
+            ripple.style.left = x + "px";
+            ripple.style.top = y + "px";
+            ripple.classList.add("ripple");
+
+            this.appendChild(ripple);
+
+            // Animate ripple
+            gsap.fromTo(
+              ripple,
+              { scale: 0, opacity: 1 },
+              {
+                scale: 2,
+                opacity: 0,
+                duration: 0.6,
+                ease: "power2.out",
+                onComplete: () => ripple.remove(),
+              }
+            );
+
+            // Button scale animation
+            gsap.to(this, {
+              duration: 0.1,
+              scale: 0.95,
+              yoyo: true,
+              repeat: 1,
+              ease: "power2.inOut",
+            });
+          });
+        });
+
+        // Create floating background elements for parallax
+        const createFloatingElements = () => {
+          const floatingContainer = document.createElement("div");
+          floatingContainer.className = "floating-bg-container";
+          floatingContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+          `;
+
+          for (let i = 0; i < 5; i++) {
+            const element = document.createElement("div");
+            element.className = "floating-bg-element";
+            element.style.cssText = `
+              position: absolute;
+              width: ${Math.random() * 200 + 100}px;
+              height: ${Math.random() * 200 + 100}px;
+              background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+              border-radius: 50%;
+              top: ${Math.random() * 100}%;
+              left: ${Math.random() * 100}%;
+            `;
+            floatingContainer.appendChild(element);
+
+            // Animate floating elements
+            gsap.to(element, {
+              y: Math.random() * 100 - 50,
+              x: Math.random() * 100 - 50,
+              rotation: Math.random() * 360,
+              duration: Math.random() * 20 + 10,
+              repeat: -1,
+              yoyo: true,
+              ease: "none",
+            });
+          }
+
+          document.body.appendChild(floatingContainer);
+        };
+
+        createFloatingElements();
+
+        // Add magnetic effect to buttons
+        gsap.utils.toArray(".btn").forEach((button) => {
+          button.addEventListener("mouseenter", (e) => {
+            gsap.to(button, {
+              duration: 0.3,
+              scale: 1.05,
+              ease: "power2.out",
+            });
+          });
+
+          button.addEventListener("mouseleave", (e) => {
+            gsap.to(button, {
+              duration: 0.3,
+              scale: 1,
+              ease: "power2.out",
+            });
+          });
+
+          button.addEventListener("mousemove", (e) => {
+            const rect = button.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+
+            gsap.to(button, {
+              duration: 0.3,
+              x: x * 0.1,
+              y: y * 0.1,
+              ease: "power2.out",
+            });
+          });
+
+          button.addEventListener("mouseleave", (e) => {
+            gsap.to(button, {
+              duration: 0.5,
+              x: 0,
+              y: 0,
+              scale: 1,
+              ease: "elastic.out(1, 0.3)",
+            });
+          });
+        });
+
+        // Add parallax effect to cards
+        gsap.utils.toArray(".card").forEach((card) => {
+          gsap.to(card, {
+            yPercent: -10,
+            ease: "none",
+            scrollTrigger: {
+              trigger: card,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: true,
+            },
+          });
+        });
+
+        // Text reveal animation
+        gsap.utils.toArray("h1, h2, h3, h4, h5, h6").forEach((heading) => {
+          gsap.fromTo(
+            heading,
+            { y: 30, opacity: 0 },
+            {
+              duration: 1,
+              y: 0,
+              opacity: 1,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: heading,
+                start: "top 85%",
+                toggleActions: "play none none reverse",
+              },
+            }
+          );
+        });
+      });
+
+      // Loading screen animation
+      window.addEventListener("load", function () {
+        const loadingScreen = document.getElementById("loading-screen");
+        if (loadingScreen) {
+          gsap.to(loadingScreen, {
+            duration: 1,
+            opacity: 0,
+            scale: 0.8,
+            ease: "power2.inOut",
+            delay: 0.5,
+            onComplete: () => {
+              loadingScreen.style.display = "none";
+            },
+          });
+        }
+      });
+
+      // Smooth scroll for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            gsap.to(window, {
+              duration: 1,
+              scrollTo: target,
+              ease: "power2.inOut",
+            });
+          }
+        });
+      });
+    </script>
+
+    <!-- Ripple effect CSS -->
+    <style>
+      .ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        pointer-events: none;
+        transform: scale(0);
+      }
+    </style>
+
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>

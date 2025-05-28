@@ -1,0 +1,555 @@
+{% extends 'interior_app/base.html' %} {% block title %}Giới thiệu - Virtual
+Interior Designer{% endblock %} {% block extra_css %}
+<style>
+  .hero-about {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border-radius: 30px;
+    padding: 4rem 2rem;
+    margin: 2rem 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-about::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    animation: rotate 30s linear infinite;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .about-title {
+    font-family: "Poppins", sans-serif;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2rem;
+  }
+
+  .about-lead {
+    color: rgba(45, 55, 72, 0.8);
+    font-size: 1.3rem;
+    line-height: 1.6;
+  }
+
+  .tech-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .tech-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(102, 126, 234, 0.1),
+      transparent
+    );
+    transition: left 0.5s;
+  }
+
+  .tech-card:hover::before {
+    left: 100%;
+  }
+
+  .tech-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 25px 50px rgba(102, 126, 234, 0.3);
+  }
+
+  .tech-icon {
+    font-size: 2.5rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+  }
+
+  .section-divider {
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: 2px;
+    margin: 3rem 0;
+    position: relative;
+  }
+
+  .section-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .feature-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .feature-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+    position: relative;
+    padding-left: 2rem;
+  }
+
+  .feature-list li::before {
+    content: "✨";
+    position: absolute;
+    left: 0;
+    top: 0.75rem;
+    font-size: 1.2rem;
+  }
+
+  .feature-list li:last-child {
+    border-bottom: none;
+  }
+
+  .cta-section {
+    background: var(--gradient-primary);
+    border-radius: 25px;
+    padding: 3rem;
+    text-align: center;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 70%
+    );
+    animation: float 15s ease-in-out infinite;
+  }
+
+  .cta-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+  }
+
+  .stat-item {
+    text-align: center;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+
+  .stat-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+  }
+
+  .stat-label {
+    color: var(--text-light);
+    font-weight: 500;
+    margin-top: 0.5rem;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container py-5">
+  <div class="hero-about fade-in">
+    <div class="hero-content text-center">
+      <h1 class="display-4 about-title scale-in">
+        Về Virtual Interior Designer
+      </h1>
+      <p class="about-lead slide-in-left">
+        Chúng tôi kết hợp công nghệ AI tiên tiến giúp bạn thiết kế và tùy biến
+        không gian nội thất một cách dễ dàng và hiệu quả.
+      </p>
+    </div>
+  </div>
+
+  <!-- Stats Section -->
+  <div class="stats-grid fade-in">
+    <div class="stat-item scale-in">
+      <span class="stat-number">4</span>
+      <div class="stat-label">Mô hình AI tiên tiến</div>
+    </div>
+    <div class="stat-item scale-in">
+      <span class="stat-number">20+</span>
+      <div class="stat-label">Loại nội thất hỗ trợ</div>
+    </div>
+    <div class="stat-item scale-in">
+      <span class="stat-number">100%</span>
+      <div class="stat-label">Miễn phí sử dụng</div>
+    </div>
+    <div class="stat-item scale-in">
+      <span class="stat-number">∞</span>
+      <div class="stat-label">Khả năng sáng tạo</div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- Danh sách nội thất hỗ trợ -->
+  <div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+      <div class="card tech-card shadow-sm fade-in">
+        <div class="card-body p-5">
+          <h2 class="mb-4 text-center">
+            <i class="fas fa-palette tech-icon me-3"></i>Danh sách nội thất hỗ
+            trợ
+          </h2>
+          <p class="text-center mb-4">
+            Hệ thống AI của chúng tôi có thể sinh ra đa dạng loại nội thất để
+            thay thế vật thể đã xóa:
+          </p>
+
+          <div class="row">
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-couch text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Sofa & Ghế</h6>
+                <small class="text-muted">Sofa, ghế bành, ghế đơn</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-bed text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Giường & Nệm</h6>
+                <small class="text-muted">Giường ngủ, nệm, gối</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-table text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Bàn & Tủ</h6>
+                <small class="text-muted">Bàn ăn, tủ quần áo, kệ</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-lightbulb text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Đèn chiếu sáng</h6>
+                <small class="text-muted">Đèn chùm, đèn bàn, đèn sàn</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-tv text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Thiết bị điện tử</h6>
+                <small class="text-muted">TV, loa, máy tính</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-seedling text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Cây cảnh</h6>
+                <small class="text-muted">Cây trong nhà, chậu hoa</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-image text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Tranh & Trang trí</h6>
+                <small class="text-muted">Tranh ảnh, đồ trang trí</small>
+              </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+              <div class="text-center p-3 border rounded">
+                <i
+                  class="fas fa-plus text-primary mb-2"
+                  style="font-size: 2rem"
+                ></i>
+                <h6 class="mb-1">Và nhiều hơn nữa</h6>
+                <small class="text-muted">Liên tục cập nhật</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-4">
+            <div class="alert alert-info d-inline-block">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Lưu ý:</strong> AI sẽ tự động chọn nội thất phù hợp với
+              phong cách và không gian hiện có.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+      <div class="card tech-card shadow-sm slide-in-left">
+        <div class="card-body p-5">
+          <h2 class="mb-4">
+            <i class="fas fa-lightbulb tech-icon me-3"></i>Câu chuyện của chúng
+            tôi
+          </h2>
+          <p class="mb-4">
+            Virtual Interior Designer ra đời từ nhu cầu giúp mọi người có thể dễ
+            dàng tùy chỉnh không gian sống mà không cần phải thuê nhà thiết kế
+            chuyên nghiệp hoặc sử dụng các phần mềm chỉnh sửa ảnh phức tạp.
+          </p>
+          <p class="mb-3">Dự án sử dụng bốn công nghệ AI tiên tiến:</p>
+          <ul class="feature-list">
+            <li>
+              <strong>SAM (Segment Anything Model)</strong> - Mô hình phân đoạn
+              hình ảnh tiên tiến từ Meta AI, giúp nhận diện chính xác các vật
+              thể trong ảnh
+            </li>
+            <li>
+              <strong>LaMa (Large Mask Inpainting)</strong> - Mô hình phục hồi
+              nền hiện đại có khả năng xóa các vật thể và phục hồi nền một cách
+              tự nhiên
+            </li>
+            <li>
+              <strong>Stable Diffusion</strong> - Mô hình sinh ảnh AI mạnh mẽ,
+              có thể tạo ra nội thất mới với chất lượng chuyên nghiệp thay thế
+              vật thể đã xóa
+            </li>
+            <li>
+              <strong>AI Prompt Generator</strong> - Hệ thống AI tự động phân
+              tích ảnh tham khảo và tạo prompt chi tiết cho Stable Diffusion
+            </li>
+          </ul>
+          <p class="mt-4">
+            Sự kết hợp này tạo ra một công cụ toàn diện: không chỉ "xóa" các vật
+            dụng không mong muốn mà còn có thể "thay thế" chúng bằng nội thất
+            mới hoàn toàn, giúp bạn hình dung không gian lý tưởng.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-5">
+    <div class="col-lg-10 mx-auto">
+      <div class="card tech-card shadow-sm slide-in-right">
+        <div class="card-body p-5">
+          <h2 class="mb-4">
+            <i class="fas fa-cogs tech-icon me-3"></i>Công nghệ sử dụng
+          </h2>
+
+          <!-- Công nghệ AI chính -->
+          <div class="row mb-4">
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fas fa-object-ungroup tech-icon me-2"></i>SAM -
+                  Segment Anything Model
+                </h4>
+                <p>
+                  SAM là mô hình phân đoạn hình ảnh được phát triển bởi Meta AI,
+                  với khả năng nhận diện và phân đoạn bất kỳ vật thể nào trong
+                  ảnh với độ chính xác cao. SAM được huấn luyện trên tập dữ liệu
+                  khổng lồ và có thể làm việc với nhiều loại đối tượng khác
+                  nhau.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fas fa-magic tech-icon me-2"></i>LaMa - Large Mask
+                  Inpainting
+                </h4>
+                <p>
+                  LaMa là mô hình inpainting tiên tiến được thiết kế đặc biệt để
+                  xử lý các vùng mask lớn. Mô hình này sử dụng kiến trúc Fast
+                  Fourier Convolution để nắm bắt các mẫu cấu trúc toàn cục, giúp
+                  tạo ra kết quả phục hồi hình ảnh tự nhiên và hài hòa.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Công nghệ sinh ảnh AI -->
+          <div class="row mb-4">
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fas fa-wand-magic tech-icon me-2"></i>Stable
+                  Diffusion
+                </h4>
+                <p>
+                  Stable Diffusion là mô hình sinh ảnh AI tiên tiến sử dụng kỹ
+                  thuật diffusion để tạo ra hình ảnh chất lượng cao từ mô tả văn
+                  bản. Chúng tôi tích hợp Stable Diffusion để sinh ra nội thất
+                  mới thay thế vật thể đã xóa, đảm bảo phù hợp với phong cách và
+                  không gian hiện có.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fas fa-robot tech-icon me-2"></i>AI Prompt Generator
+                </h4>
+                <p>
+                  Hệ thống AI Prompt Generator tự động phân tích ảnh tham khảo
+                  nội thất và tạo ra prompt chi tiết cho Stable Diffusion. Điều
+                  này giúp người dùng không cần kiến thức về prompt engineering
+                  vẫn có thể tạo ra nội thất chất lượng cao.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fab fa-python tech-icon me-2"></i>Django Framework
+                </h4>
+                <p>
+                  Django là một framework web Python cấp cao, giúp phát triển
+                  ứng dụng web an toàn và dễ bảo trì. Chúng tôi sử dụng Django
+                  để tạo giao diện người dùng và kết nối các mô hình AI với trải
+                  nghiệm web.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6 mb-4 fade-in">
+              <div class="tech-item p-3">
+                <h4>
+                  <i class="fab fa-js tech-icon me-2"></i>JavaScript & Bootstrap
+                </h4>
+                <p>
+                  Giao diện người dùng của chúng tôi được xây dựng với Bootstrap
+                  để đảm bảo tính responsive và JavaScript để tương tác người
+                  dùng mượt mà và trực quan.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-10 mx-auto">
+      <div class="cta-section fade-in">
+        <div class="cta-content">
+          <h2 class="mb-4">
+            <i class="fas fa-rocket me-3"></i>Tính năng hiện tại & Tương lai
+          </h2>
+
+          <div class="mb-4">
+            <h4 class="text-success mb-3">
+              <i class="fas fa-check-circle me-2"></i>Đã hoàn thành
+            </h4>
+            <ul class="feature-list text-start d-inline-block">
+              <li>✅ Xóa vật thể thông minh với SAM + LaMa</li>
+              <li>✅ Sinh nội thất mới với Stable Diffusion</li>
+              <li>✅ AI Prompt Generator tự động</li>
+              <li>✅ Hỗ trợ 20+ loại nội thất</li>
+              <li>✅ Giao diện hiện đại với GSAP animations</li>
+            </ul>
+          </div>
+
+          <div class="mb-4">
+            <h4 class="text-primary mb-3">
+              <i class="fas fa-cog me-2"></i>Đang phát triển
+            </h4>
+            <ul class="feature-list text-start d-inline-block">
+              <li>🔄 Thay đổi màu sắc và kết cấu tường, sàn nhà</li>
+              <li>🔄 Thư viện nội thất 3D tích hợp</li>
+              <li>🔄 Đề xuất thiết kế thông minh dựa trên AI</li>
+              <li>🔄 Chế độ AR/VR preview</li>
+            </ul>
+          </div>
+
+          <p class="mt-4 mb-4">
+            Mục tiêu của chúng tôi là tạo ra một công cụ toàn diện giúp mọi
+            người có thể dễ dàng hình dung và thiết kế không gian sống mà không
+            cần kiến thức chuyên môn. Với việc tích hợp thành công Stable
+            Diffusion, chúng tôi đã đạt được bước tiến quan trọng trong việc
+            không chỉ "xóa" mà còn "tạo mới" nội thất.
+          </p>
+
+          <div class="mt-5">
+            <a
+              href="{% url 'upload_image' %}"
+              class="btn btn-light btn-lg scale-in"
+            >
+              <i class="fas fa-magic me-2"></i>Trải nghiệm ngay
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
